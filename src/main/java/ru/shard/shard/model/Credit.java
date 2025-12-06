@@ -63,7 +63,6 @@ public class Credit {
             return BigDecimal.ZERO;
         }
 
-        // Простая формула аннуитетного платежа
         BigDecimal monthlyRate = interestRate.divide(BigDecimal.valueOf(1200), 10, BigDecimal.ROUND_HALF_UP);
         BigDecimal numerator = monthlyRate.multiply(
                 BigDecimal.ONE.add(monthlyRate).pow(termMonths)

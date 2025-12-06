@@ -40,7 +40,6 @@ public class Client {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    // Метод для получения полного имени
     public String getFullName() {
         return lastName + " " + firstName;
     }

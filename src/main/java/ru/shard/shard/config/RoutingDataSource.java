@@ -14,7 +14,6 @@ public class RoutingDataSource extends AbstractRoutingDataSource {
 
     private static final ThreadLocal<String> CURRENT_SHARD = new ThreadLocal<>();
 
-    // Сет для отслеживания использованных шардов
     private static final Set<String> USED_SHARDS = new HashSet<>();
 
     public static void setCurrentShard(String shard) {
@@ -45,7 +44,6 @@ public class RoutingDataSource extends AbstractRoutingDataSource {
         String shard = CURRENT_SHARD.get();
 
         if (shard == null) {
-            // Если шард не установлен, используем первый по умолчанию
             shard = "shard02";
             CURRENT_SHARD.set(shard);
             USED_SHARDS.add(shard);

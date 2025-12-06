@@ -45,7 +45,6 @@ public class ShardManager {
         JdbcTemplate catalogJdbc = new JdbcTemplate(catalogDataSource);
 
         try {
-            // Прямой запрос в каталог
             String shardName = catalogJdbc.queryForObject(
                     "SELECT shard_name FROM credit_shard_mapping WHERE credit_id = ?",
                     String.class,
@@ -61,7 +60,6 @@ public class ShardManager {
             log.debug("Кредит ID {} не найден в каталоге: {}", creditId, e.getMessage());
         }
 
-        // Если не нашли в каталоге, ищем на всех шардах и обновляем каталог
         log.debug("Кредит ID {} не найден в каталоге, ищем на шардах...", creditId);
         return findShardOnAllShardsAndUpdateCatalog(creditId);
     }
@@ -77,7 +75,6 @@ public class ShardManager {
             JdbcTemplate shardJdbc = new JdbcTemplate(shardDataSource);
 
             try {
-                // Проверяем существование кредита
                 Integer count = shardJdbc.queryForObject(
                         "SELECT COUNT(*) FROM credits WHERE id = ?",
                         Integer.class,
@@ -94,7 +91,6 @@ public class ShardManager {
                             creditId
                     );
 
-                    // Обновляем каталог
                     updateCatalogWithCreditInfo(creditId, contractNumber, shardName);
 
                     return Optional.of(shardName);
@@ -131,7 +127,6 @@ public class ShardManager {
             JdbcTemplate shardJdbc = new JdbcTemplate(shardDataSource);
 
             try {
-                // Получаем все кредиты с этого шарда
                 List<Map<String, Object>> credits = shardJdbc.queryForList(
                         "SELECT id, contract_number FROM credits"
                 );

@@ -67,12 +67,10 @@ public class DataSourceConfig {
 
         RoutingDataSource routingDataSource = new RoutingDataSource();
 
-        // Берем первый шард как дефолтный
         String firstShard = dataSources.keySet().iterator().next();
         DataSource defaultDataSource = dataSources.get(firstShard);
         routingDataSource.setDefaultTargetDataSource(defaultDataSource);
 
-        // Устанавливаем все шарды
         Map<Object, Object> targetDataSources = new HashMap<>(dataSources);
         routingDataSource.setTargetDataSources(targetDataSources);
         routingDataSource.afterPropertiesSet();
