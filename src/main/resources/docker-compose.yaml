@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  # Шард 1
+  postgres1:
+    image: postgres:15
+    container_name: postgres-shard-1
+    environment:
+      POSTGRES_DB: db1  # Создаст БД db1
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data1:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro  # Скрипты инициализации
+    networks:
+      - postgres-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Шард 2
+  postgres2:
+    image: postgres:15
+    container_name: postgres-shard-2
+    environment:
+      POSTGRES_DB: db2  # Создаст БД db2
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data2:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - postgres-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db2"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Шард 3
+  postgres3:
+    image: postgres:15
+    container_name: postgres-shard-3
+    environment:
+      POSTGRES_DB: db3  # Создаст БД db3
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data3:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - postgres-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Шард 4
+  postgres4:
+    image: postgres:15
+    container_name: postgres-shard-4
+    environment:
+      POSTGRES_DB: db4  # Создаст БД db4
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data4:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - postgres-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db4"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Шард 5
+  postgres5:
+    image: postgres:15
+    container_name: postgres-shard-5
+    environment:
+      POSTGRES_DB: db5  # Создаст БД db5
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_data5:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - postgres-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db5"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin для управления (опционально)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - postgres-network
+    restart: unless-stopped
+    depends_on:
+      postgres1:
+        condition: service_healthy
+      postgres2:
+        condition: service_healthy
+      postgres3:
+        condition: service_healthy
+      postgres4:
+        condition: service_healthy
+      postgres5:
+        condition: service_healthy
+
+volumes:
+  postgres_data1:
+  postgres_data2:
+  postgres_data3:
+  postgres_data4:
+  postgres_data5:
+  pgadmin_data:
+
+networks:
+  postgres-network:
+    driver: bridge

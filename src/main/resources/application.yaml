@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: shard
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+
+sharding:
+  shards:
+    shard02:
+      url: jdbc:postgresql://localhost:5433/db2
+      username: admin
+      password: admin123
+      driverClassName: org.postgresql.Driver
+      hikari:
+        maximumPoolSize: 5
+        minimumIdle: 2
+        connectionTimeout: 30000
+    shard03:
+      url: jdbc:postgresql://localhost:5434/db3
+      username: admin
+      password: admin123
+      driverClassName: org.postgresql.Driver
+      hikari:
+        maximumPoolSize: 5
+        minimumIdle: 2
+        connectionTimeout: 30000
+    shard04:
+      url: jdbc:postgresql://localhost:5435/db4
+      username: admin
+      password: admin123
+      driverClassName: org.postgresql.Driver
+      hikari:
+        maximumPoolSize: 5
+        minimumIdle: 2
+        connectionTimeout: 30000
+    shard05:
+      url: jdbc:postgresql://localhost:5436/db5
+      username: admin
+      password: admin123
+      driverClassName: org.postgresql.Driver
+      hikari:
+        maximumPoolSize: 5
+        minimumIdle: 2
+        connectionTimeout: 30000
+
+  catalog:
+    url: jdbc:postgresql://localhost:5437/shard_catalog
+    username: admin
+    password: admin123
+    driverClassName: org.postgresql.Driver
+    hikari:
+      maximumPoolSize: 5
+      minimumIdle: 2
+      connectionTimeout: 30000
