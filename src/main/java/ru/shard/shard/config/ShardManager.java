@@ -91,8 +91,6 @@ public class ShardManager {
                             creditId
                     );
 
-                    updateCatalogWithCreditInfo(creditId, contractNumber, shardName);
-
                     return Optional.of(shardName);
                 }
 
@@ -106,98 +104,6 @@ public class ShardManager {
         return Optional.empty();
     }
 
-
-    /**
-     * Инициализировать каталог всеми существующими кредитами
-     */
-    public void initializeCatalogWithAllCredits() {
-        log.info("=== ИНИЦИАЛИЗАЦИЯ КАТАЛОГА ВСЕМИ КРЕДИТАМИ ===");
-
-        JdbcTemplate catalogJdbc = new JdbcTemplate(catalogDataSource);
-
-        // Очищаем старые данные (опционально)
-        //catalogJdbc.execute("TRUNCATE credit_shard_mapping RESTART IDENTITY");
-
-        int totalCredits = 0;
-
-        for (String shardName : getAllShards()) {
-            DataSource shardDataSource = dataSources.get(shardName);
-            if (shardDataSource == null) continue;
-
-            JdbcTemplate shardJdbc = new JdbcTemplate(shardDataSource);
-
-            try {
-                List<Map<String, Object>> credits = shardJdbc.queryForList(
-                        "SELECT id, contract_number FROM credits"
-                );
-
-                for (Map<String, Object> credit : credits) {
-                    Long creditId = ((Number) credit.get("id")).longValue();
-                    String contractNumber = (String) credit.get("contract_number");
-
-                    // Вставляем в каталог
-                    catalogJdbc.update(
-                            "INSERT INTO credit_shard_mapping (credit_id, contract_number, shard_name) " +
-                                    "VALUES (?, ?, ?) " +
-                                    "ON CONFLICT (contract_number) DO UPDATE SET credit_id = ?",
-                            creditId, contractNumber, shardName, creditId
-                    );
-
-                    totalCredits++;
-                }
-
-                log.info("Шард {}: добавлено {} кредитов в каталог", shardName, credits.size());
-
-            } catch (Exception e) {
-                log.error("Ошибка при обработке шарда {}: {}", shardName, e.getMessage());
-            }
-        }
-
-        log.info("=== КАТАЛОГ ИНИЦИАЛИЗИРОВАН: {} кредитов ===", totalCredits);
-    }
-
-    /**
-     * Обновить каталог найденным кредитом
-     */
-    private void updateCatalogWithFoundCredit(Long creditId, Map<String, Object> creditData, String shardName) {
-        if (creditId == null || creditData == null || shardName == null) {
-            return;
-        }
-
-        String contractNumber = (String) creditData.get("contract_number");
-        if (contractNumber != null) {
-            updateCatalogWithCreditInfo(creditId, contractNumber, shardName);
-        }
-    }
-
-    /**
-     * Метод из предыдущей реализации для обновления каталога
-     */
-    private void updateCatalogWithCreditInfo(Long creditId, String contractNumber, String shardName) {
-        JdbcTemplate catalogJdbc = new JdbcTemplate(catalogDataSource);
-
-        try {
-            int updated = catalogJdbc.update(
-                    "UPDATE credit_shard_mapping SET credit_id = ? " +
-                            "WHERE contract_number = ? AND credit_id IS NULL",
-                    creditId, contractNumber
-            );
-
-            if (updated == 0) {
-                catalogJdbc.update(
-                        "INSERT INTO credit_shard_mapping (contract_number, credit_id, shard_name) " +
-                                "VALUES (?, ?, ?) " +
-                                "ON CONFLICT (contract_number) DO UPDATE SET credit_id = ?",
-                        contractNumber, creditId, shardName, creditId
-                );
-            }
-
-            log.debug("Каталог обновлен: кредит ID {} -> шард {}", creditId, shardName);
-
-        } catch (Exception e) {
-            log.error("Ошибка при обновлении каталога: {}", e.getMessage());
-        }
-    }
 
     /**
      * Получить список всех шардов с их DataSource
@@ -262,8 +168,6 @@ public class ShardManager {
                             // Чтобы избежать LazyLoadingException
                             credit = creditRepository.findByIdWithClient(entityId).orElse(credit);
                         }
-                        // Обновляем каталог
-                        updateCatalogWithCreditInfo(credit.getId(), credit.getContractNumber(), shardName);
                     }
                     break;
 
@@ -288,40 +192,4 @@ public class ShardManager {
             RoutingDataSource.clearCurrentShard();
         }
     }
-
-    /**
-     * Найти клиента в конкретном шарде (специализированный метод)
-     */
-    public Optional<Client> findClientInSpecificShard(Long clientId, String shardName) {
-        return findEntityInSpecificShard("client", clientId, shardName);
-    }
-
-    /**
-     * Найти кредит в конкретном шарде (специализированный метод)
-     */
-    public Optional<Credit> findCreditInSpecificShard(Long creditId, String shardName) {
-        return findEntityInSpecificShard("credit", creditId, shardName);
-    }
-
-    /**
-     * Найти кредит в конкретном шарде с загруженным клиентом
-     */
-    public Optional<Credit> findCreditWithClientInSpecificShard(Long creditId, String shardName) {
-        RoutingDataSource.setCurrentShard(shardName);
-
-        try {
-            Optional<Credit> creditOpt = creditRepository.findByIdWithClient(creditId);
-
-            if (creditOpt.isPresent()) {
-                Credit credit = creditOpt.get();
-                updateCatalogWithCreditInfo(credit.getId(), credit.getContractNumber(), shardName);
-            }
-
-            return creditOpt;
-
-        } finally {
-            RoutingDataSource.clearCurrentShard();
-        }
-    }
-
 }

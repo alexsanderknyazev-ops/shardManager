@@ -86,55 +86,15 @@ services:
     image: postgres:15
     container_name: postgres-shard-5
     environment:
-      POSTGRES_DB: db5  # Создаст БД db5
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Nardy6!Pass123"
+      MSSQL_PID: Express
+      MSSQL_DATABASE: db6
     ports:
-      - "5436:5432"
+      - "1433:1433"
     volumes:
-      - postgres_data5:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d:ro
-    networks:
-      - postgres-network
+      - mssql_data:/var/opt/mssql
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d db5"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # pgAdmin для управления (опционально)
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - postgres-network
-    restart: unless-stopped
-    depends_on:
-      postgres1:
-        condition: service_healthy
-      postgres2:
-        condition: service_healthy
-      postgres3:
-        condition: service_healthy
-      postgres4:
-        condition: service_healthy
-      postgres5:
-        condition: service_healthy
 
 volumes:
-  postgres_data1:
-  postgres_data2:
-  postgres_data3:
-  postgres_data4:
-  postgres_data5:
-  pgadmin_data:
-
-networks:
-  postgres-network:
-    driver: bridge
+  mssql_data:
