@@ -44,7 +44,6 @@ public class Client {
         return lastName + " " + firstName;
     }
 
-    // Метод для логирования (без чувствительных данных)
     @Override
     public String toString() {
         return "Client{" +
