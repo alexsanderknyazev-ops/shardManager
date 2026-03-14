@@ -22,8 +22,7 @@ public class DataSourceConfig {
 
     public DataSourceConfig(ShardProperties shardProperties) {
         this.shardProperties = shardProperties;
-        log.info("DataSourceConfig создан, всего шардов в свойствах: {}",
-                shardProperties.getShards().size());
+        log.info("DataSourceConfig создан, шардов: {}", shardProperties.getShards().size());
     }
 
     @Bean
@@ -32,7 +31,7 @@ public class DataSourceConfig {
         Map<String, DataSource> dataSourceMap = new HashMap<>();
 
         if (shardProperties.getShards().isEmpty()) {
-            log.warn("ВНИМАНИЕ: список шардов пуст! Проверьте application.yml");
+            log.warn("Список шардов пуст");
         }
 
         shardProperties.getShards().forEach((shardName, shardConfig) -> {
@@ -61,7 +60,6 @@ public class DataSourceConfig {
         log.info("Создаем RoutingDataSource, всего DataSource: {}", dataSources.size());
 
         if (dataSources.isEmpty()) {
-            log.error("ОШИБКА: нет DataSource для создания RoutingDataSource!");
             throw new IllegalStateException("Нет DataSource для создания RoutingDataSource");
         }
 

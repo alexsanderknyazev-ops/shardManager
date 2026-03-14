@@ -77,7 +77,6 @@ public class Credit {
         return getMonthlyPayment().multiply(BigDecimal.valueOf(termMonths));
     }
 
-    // Проверка, активен ли кредит
     @Transient
     public boolean isActive() {
         return CreditStatus.ACTIVE.equals(status);

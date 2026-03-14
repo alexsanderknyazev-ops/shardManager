@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
+import ru.shard.shard.config.property.ShardProperties;
 import ru.shard.shard.model.Client;
 import ru.shard.shard.model.Credit;
 import ru.shard.shard.repository.ClientRepository;
@@ -24,8 +25,8 @@ import java.util.stream.Collectors;
 public class ShardManager {
 
     private final Map<String, DataSource> dataSources;
-
     private final DataSource catalogDataSource;
+    private final ShardProperties shardProperties;
     private final CreditRepository creditRepository;
     private final ClientRepository clientRepository;
     private ExecutorService taskExecutor;
@@ -61,16 +62,10 @@ public class ShardManager {
         }
     }
 
-    /**
-     * Получить список всех шардов
-     */
     public List<String> getAllShards() {
         return List.copyOf(dataSources.keySet());
     }
 
-    /**
-     * Определить шард по ID кредита через центральный каталог
-     */
     public Optional<String> determineShardByCreditId(Long creditId) {
         if (creditId == null) {
             log.warn("ID кредита не может быть null");
@@ -83,13 +78,13 @@ public class ShardManager {
 
         try {
             String shardName = catalogJdbc.queryForObject(
-                    "SELECT shard_name FROM credit_shard_mapping WHERE credit_id = ?",
+                    "SELECT shard_name FROM " + ShardConstants.TABLE_CREDIT_SHARD_MAPPING + " WHERE credit_id = ?",
                     String.class,
                     creditId
             );
 
             if (shardName != null) {
-                log.debug("✅ Шард найден в каталоге: {} -> {}", creditId, shardName);
+                log.debug("Шард найден в каталоге: {} -> {}", creditId, shardName);
                 return Optional.of(shardName);
             }
 
@@ -98,12 +93,9 @@ public class ShardManager {
         }
 
         log.debug("Кредит ID {} не найден в каталоге, ищем на шардах...", creditId);
-        return findShardOnAllShardsAndUpdateCatalogAcync(creditId);
+        return findShardOnAllShardsAndUpdateCatalogAsync(creditId);
     }
 
-    /**
-     * Найти шард на всех шардах и обновить каталог
-     */
     private Optional<String> findShardOnAllShardsAndUpdateCatalog(Long creditId) {
         for (String shardName : getAllShards()) {
             DataSource shardDataSource = dataSources.get(shardName);
@@ -113,16 +105,16 @@ public class ShardManager {
 
             try {
                 Integer count = shardJdbc.queryForObject(
-                        "SELECT COUNT(*) FROM credits WHERE id = ?",
+                        "SELECT COUNT(*) FROM " + ShardConstants.TABLE_CREDITS + " WHERE id = ?",
                         Integer.class,
                         creditId
                 );
 
                 if (count != null && count > 0) {
-                    log.info("✅ Кредит ID {} найден на шарде: {}", creditId, shardName);
+                    log.info("Кредит ID {} найден на шарде: {}", creditId, shardName);
 
                     String contractNumber = shardJdbc.queryForObject(
-                            "SELECT contract_number FROM credits WHERE id = ?",
+                            "SELECT contract_number FROM " + ShardConstants.TABLE_CREDITS + " WHERE id = ?",
                             String.class,
                             creditId
                     );
@@ -140,7 +132,7 @@ public class ShardManager {
         return Optional.empty();
     }
 
-    private Optional<String> findShardOnAllShardsAndUpdateCatalogAcync(Long creditId) {
+    private Optional<String> findShardOnAllShardsAndUpdateCatalogAsync(Long creditId) {
         List<CompletableFuture<String>> futures = getAllShards().stream()
                 .map(shardName -> searchInShardAsync(shardName, creditId)
                         .thenApply(opt -> opt.orElse(null)))
@@ -158,12 +150,14 @@ public class ShardManager {
                 );
 
         try {
-            String foundShard = firstFound.get(5, TimeUnit.SECONDS);
+            int timeout = shardProperties.getSearchTimeoutSeconds() > 0
+                    ? shardProperties.getSearchTimeoutSeconds() : 5;
+            String foundShard = firstFound.get(timeout, TimeUnit.SECONDS);
 
             if (foundShard != null) {
                 return Optional.of(foundShard);
             } else {
-                log.warn("❌ Кредит ID {} не найден ни на одном шарде", creditId);
+                log.warn("Кредит ID {} не найден ни на одном шарде", creditId);
                 return Optional.empty();
             }
 
@@ -187,13 +181,14 @@ public class ShardManager {
 
             try {
                 Integer count = shardJdbc.queryForObject(
-                        "SELECT COUNT(*) FROM credits WHERE id = ?",
+                        "SELECT COUNT(*) FROM " + ShardConstants.TABLE_CREDITS + " WHERE id = ?",
                         Integer.class,
                         creditId
                 );
 
                 if (count != null && count > 0) {
-                    log.info("✅ Кредит ID {} найден на шарде: {}", creditId, shardName);
+                    log.info("Кредит ID {} найден на шарде: {}", creditId, shardName);
+                    updateCatalogWithCreditShard(creditId, shardName);
                     return Optional.of(shardName);
                 }
             } catch (Exception e) {
@@ -204,29 +199,45 @@ public class ShardManager {
         }, taskExecutor);
     }
 
+    private void updateCatalogWithCreditShard(Long creditId, String shardName) {
+        try {
+            JdbcTemplate catalogJdbc = new JdbcTemplate(catalogDataSource);
+            catalogJdbc.update(
+                    "INSERT INTO " + ShardConstants.TABLE_CREDIT_SHARD_MAPPING + " (credit_id, shard_name) VALUES (?, ?) " +
+                            "ON CONFLICT (credit_id) DO UPDATE SET shard_name = EXCLUDED.shard_name",
+                    creditId, shardName
+            );
+            log.debug("Каталог обновлён: credit_id={} -> shard={}", creditId, shardName);
+        } catch (Exception e) {
+            log.warn("Не удалось обновить каталог для credit_id={}: {}", creditId, e.getMessage());
+        }
+    }
 
-    /**
-     * Получить список всех шардов с их DataSource
-     */
+    public void registerCreditShard(Long creditId, String shardName) {
+        if (creditId != null && shardName != null && !shardName.isEmpty()) {
+            updateCatalogWithCreditShard(creditId, shardName);
+        }
+    }
+
+    public void unregisterCreditShard(Long creditId) {
+        if (creditId == null) return;
+        try {
+            JdbcTemplate catalogJdbc = new JdbcTemplate(catalogDataSource);
+            catalogJdbc.update("DELETE FROM " + ShardConstants.TABLE_CREDIT_SHARD_MAPPING + " WHERE credit_id = ?", creditId);
+            log.debug("Каталог: запись для credit_id={} удалена", creditId);
+        } catch (Exception e) {
+            log.warn("Не удалось удалить запись из каталога для credit_id={}: {}", creditId, e.getMessage());
+        }
+    }
+
     public Map<String, DataSource> getShardDataSources() {
         return Collections.unmodifiableMap(dataSources);
     }
 
-    /**
-     * Получить DataSource конкретного шарда
-     */
     public Optional<DataSource> getShardDataSource(String shardName) {
         return Optional.ofNullable(dataSources.get(shardName));
     }
-    /**
-     * Универсальный метод для поиска сущности в конкретном шарде по ID
-     * Возвращает сущность напрямую
-     *
-     * @param entityType тип сущности: "client", "credit"
-     * @param entityId ID сущности
-     * @param shardName имя шарда (shard02, shard03, shard04, shard05)
-     * @return Optional с сущностью, если найдена
-     */
+
     public <T> Optional<T> findEntityInSpecificShard(
             String entityType,
             Long entityId,
@@ -262,10 +273,8 @@ public class ShardManager {
                 case "credit":
                     entityOpt = creditRepository.findById(entityId);
                     if (entityOpt.isPresent()) {
-                        // Для кредита можно загрузить связанного клиента, если нужно
                         Credit credit = (Credit) entityOpt.get();
                         if (credit.getClient() != null) {
-                            // Чтобы избежать LazyLoadingException
                             credit = creditRepository.findByIdWithClient(entityId).orElse(credit);
                         }
                     }
@@ -277,10 +286,10 @@ public class ShardManager {
             }
 
             if (entityOpt.isPresent()) {
-                log.info("✅ Сущность {} ID {} найдена в шарде: {}", entityType, entityId, shardName);
+                log.info("Сущность {} ID {} найдена в шарде: {}", entityType, entityId, shardName);
                 return (Optional<T>) entityOpt;
             } else {
-                log.info("❌ Сущность {} ID {} не найдена в шарде: {}", entityType, entityId, shardName);
+                log.info("Сущность {} ID {} не найдена в шарде: {}", entityType, entityId, shardName);
                 return Optional.empty();
             }
 

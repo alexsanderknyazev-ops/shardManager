@@ -28,7 +28,7 @@ public class ShardRoutingAspect {
         } else if (!withShardRouting.shard().isEmpty()) {
             shardName = withShardRouting.shard();
         } else {
-            shardName = "shard02";
+            shardName = ShardConstants.DEFAULT_SHARD;
         }
 
         RoutingDataSource.setCurrentShard(shardName);
@@ -45,7 +45,7 @@ public class ShardRoutingAspect {
         Parameter[] parameters = method.getParameters();
         Object[] args = joinPoint.getArgs();
 
-        if (paramName.isEmpty()) {
+        if (paramName == null || paramName.isEmpty()) {
             for (int i = 0; i < parameters.length; i++) {
                 if (parameters[i].getType().equals(Long.class) && args[i] != null) {
                     return (Long) args[i];

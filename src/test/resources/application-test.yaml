@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS public
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+sharding:
+  shards:
+    shard02:
+      url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+      username: sa
+      password: ""
+      hikari:
+        connectionTimeout: 3000
+  catalog:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+    hikari:
+      connectionTimeout: 3000

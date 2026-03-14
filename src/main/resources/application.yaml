@@ -7,7 +7,17 @@ spring:
       ddl-auto: none
     show-sql: true
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+
 sharding:
+  search-timeout-seconds: 5
   shards:
     shard02:
       url: jdbc:postgresql://localhost:5433/db2

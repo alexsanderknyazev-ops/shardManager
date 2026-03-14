@@ -44,7 +44,7 @@ public class RoutingDataSource extends AbstractRoutingDataSource {
         String shard = CURRENT_SHARD.get();
 
         if (shard == null) {
-            shard = "shard02";
+            shard = ShardConstants.DEFAULT_SHARD;
             CURRENT_SHARD.set(shard);
             USED_SHARDS.add(shard);
             log.info("Шард не установлен, используем шард по умолчанию: {}", shard);

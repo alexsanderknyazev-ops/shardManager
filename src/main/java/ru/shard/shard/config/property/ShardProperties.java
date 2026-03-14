@@ -14,6 +14,8 @@ public class ShardProperties {
 
     private Map<String, ShardConfig> shards = new HashMap<>();
 
+    private int searchTimeoutSeconds = 5;
+
     @Data
     public static class ShardConfig {
         private String url;

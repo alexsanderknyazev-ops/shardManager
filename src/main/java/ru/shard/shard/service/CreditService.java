@@ -9,4 +9,5 @@ public interface CreditService {
     Credit getCredit(Long id);
     Client setCredit(Long id, Long clientId);
     Credit addCredit(CreditDto creditDto);
+    void deleteCredit(Long id);
 }

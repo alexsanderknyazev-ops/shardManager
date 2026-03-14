@@ -3,6 +3,7 @@ package ru.shard.shard.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.shard.shard.config.ShardManager;
+import ru.shard.shard.exception.CreditNotFoundException;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +16,7 @@ public class ShardServiceImpl implements ShardService {
     @Override
     public String getShardNameByCreditId(Long creditId) {
         return shardManager.determineShardByCreditId(creditId).orElseThrow(
-                () -> new RuntimeException("Кредита нет на шардах")
+                () -> new CreditNotFoundException(creditId)
         );
     }
 
